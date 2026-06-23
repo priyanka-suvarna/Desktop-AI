@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Voice Assistant Interface</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: #1a1a1a;
+            color: white;
+        }
+
+        .assistant-container {
+            margin-top: 50px;
+            text-align: center;
+        }
+
+        .voice-animation {
+            width: 200px;
+            height: 200px;
+            border-radius: 50%;
+            background: radial-gradient(circle, #4CAF50, #2196F3);
+            animation: pulse 2s infinite;
+            margin: 20px auto;
+            transition: transform 0.3s;
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+                opacity: 1;
+            }
+            50% {
+                transform: scale(1.1);
+                opacity: 0.8;
+            }
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        .voice-animation.listening {
+            animation: none;
+            transform: scale(1);
+        }
+
+        .voice-animation.speaking {
+            background: radial-gradient(circle, #ff4081, #e91e63);
+            transform: scale(var(--scale, 1));
+            transition: transform 0.1s ease-out;
+        }
+
+        .input-container {
+            margin: 20px;
+            width: 80%;
+            max-width: 600px;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            border-radius: 20px;
+            border: none;
+            background: #333;
+            color: white;
+        }
+
+        button {
+            margin: 10px;
+            padding: 10px 20px;
+            border-radius: 20px;
+            border: none;
+            background: #4CAF50;
+            color: white;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        button:hover {
+            background: #45a049;
+        }
+
+        #response {
+            margin: 20px;
+            padding: 20px;
+            background: #333;
+            border-radius: 10px;
+            width: 80%;
+            max-width: 600px;
+        }
+    </style>
+</head>
+<body>
+    <div class="assistant-container">
+        <h1>AI Voice Assistant</h1>
+        <div class="voice-animation" id="animation"></div>
+        <div class="input-container">
+            <input type="text" id="textInput" placeholder="Type your command...">
+            <button onclick="sendText()">Send</button>
+            <button onclick="startListening()">Start Voice Input</button>
+        </div>
+        <div id="response">Response will appear here...</div>
+    </div>
+    <script src="main.py"></script>
+
+    <script>
+        let recognition;
+        let audioContext;
+        let analyzer;
+        let microphone;
+
+        if ('webkitSpeechRecognition' in window) {
+            recognition = new webkitSpeechRecognition();
+            recognition.continuous = false;
+            recognition.interimResults = true;
+            recognition.lang = 'en-US';
+        }
+
+        function startListening() {
+            if (!recognition) {
+                alert('Speech recognition is not supported in this browser');
+                return;
+            }
+
+            const animation = document.getElementById('animation');
+            animation.classList.add('listening');
+            animation.classList.add('speaking');
+            
+            // Initialize audio context and analyzer
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                analyzer = audioContext.createAnalyser();
+                analyzer.fftSize = 256;
+            }
+
+            // Get microphone access
+            navigator.mediaDevices.getUserMedia({ audio: true })
+                .then(stream => {
+                    microphone = audioContext.createMediaStreamSource(stream);
+                    microphone.connect(analyzer);
+                    visualize();
+                })
+                .catch(err => console.error('Error accessing microphone:', err));
+
+            recognition.start();
+            recognition.onresult = function(event) {
+                const text = event.results[0][0].transcript;
+                document.getElementById('textInput').value = text;
+                processCommand(text);
+            };
+
+            recognition.onend = function() {
+                const animation = document.getElementById('animation');
+                animation.classList.remove('listening');
+                animation.classList.remove('speaking');
+                animation.style.setProperty('--scale', 1);
+                
+                if (microphone) {
+                    microphone.disconnect();
+                    microphone = null;
+                }
+            };
+        }
+
+        function visualize() {
+            const animation = document.getElementById('animation');
+            const dataArray = new Uint8Array(analyzer.frequencyBinCount);
+            
+            function update() {
+                if (!animation.classList.contains('speaking')) return;
+                
+                analyzer.getByteFrequencyData(dataArray);
+                const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
+                const scale = 1 + (average / 256) * 0.5; // Scale factor between 1 and 1.5
+                
+                animation.style.setProperty('--scale', scale);
+                requestAnimationFrame(update);
+            }
+            
+            update();
+        }
+
+        function sendText() {
+            const text = document.getElementById('textInput').value;
+            processCommand(text);
+        }
+
+        function processCommand(command) {
+            // Here you can integrate with your existing voice assistant backend
+            // For now, we'll just echo the command
+            document.getElementById('response').innerText = `Processing command: ${command}`;
+            
+            // You would typically make an API call to your backend here
+            fetch('/process-command', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ command: command })
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('response').innerText = data.response;
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('response').innerText = 'Error processing command';
+            });
+        }
+    </script>
+</body>
+</html>
