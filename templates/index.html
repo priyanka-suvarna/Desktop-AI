@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Assistant Chat</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 800px;
+            height: 90vh;
+            max-height: 700px;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .header h1 {
+            font-size: 24px;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .header p {
+            font-size: 12px;
+            opacity: 0.9;
+            margin-top: 5px;
+        }
+
+        .chat-box {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            background: #f8f9fa;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .message {
+            display: flex;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message.user {
+            justify-content: flex-end;
+        }
+
+        .message.assistant {
+            justify-content: flex-start;
+        }
+
+        .message-content {
+            max-width: 70%;
+            padding: 12px 16px;
+            border-radius: 15px;
+            word-wrap: break-word;
+            line-height: 1.5;
+            font-size: 14px;
+        }
+
+        .message.user .message-content {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+
+        .message.assistant .message-content {
+            background: white;
+            color: #333;
+            border: 1px solid #e0e0e0;
+            border-bottom-left-radius: 4px;
+        }
+
+        .chat-box::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .chat-box::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .chat-box::-webkit-scrollbar-thumb {
+            background: #667eea;
+            border-radius: 4px;
+        }
+
+        .chat-box::-webkit-scrollbar-thumb:hover {
+            background: #764ba2;
+        }
+
+        .loading-indicator {
+            display: none;
+            display: flex;
+            gap: 5px;
+            align-items: center;
+            padding: 12px 16px;
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 15px;
+            border-bottom-left-radius: 4px;
+            width: fit-content;
+        }
+
+        .loading-indicator.active {
+            display: flex;
+        }
+
+        .dot {
+            width: 8px;
+            height: 8px;
+            background: #667eea;
+            border-radius: 50%;
+            animation: pulse 1.4s infinite;
+        }
+
+        .dot:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .dot:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes pulse {
+            0%, 60%, 100% {
+                opacity: 0.3;
+            }
+            30% {
+                opacity: 1;
+            }
+        }
+
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+            color: #999;
+            text-align: center;
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+            opacity: 0.5;
+        }
+
+        .empty-state-text {
+            font-size: 16px;
+            font-weight: 500;
+            margin-bottom: 10px;
+        }
+
+        .empty-state-subtext {
+            font-size: 13px;
+            color: #bbb;
+        }
+
+        .input-area {
+            border-top: 1px solid #e0e0e0;
+            padding: 15px 20px;
+            background: white;
+        }
+
+        .input-wrapper {
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+        }
+
+        .input-field {
+            flex: 1;
+            border: 2px solid #e0e0e0;
+            border-radius: 25px;
+            padding: 12px 16px;
+            font-size: 14px;
+            font-family: inherit;
+            resize: none;
+            max-height: 100px;
+            outline: none;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+
+        .input-field:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .input-field::placeholder {
+            color: #999;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 8px;
+        }
+
+        button {
+            border: none;
+            border-radius: 25px;
+            padding: 12px 20px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            outline: none;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-send {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-width: 100px;
+        }
+
+        .btn-send:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-send:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        .btn-send:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .bottom-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            padding-top: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+            padding: 10px 16px;
+            font-size: 12px;
+        }
+
+        .btn-secondary:hover {
+            background: #e0e0e0;
+            transform: translateY(-2px);
+        }
+
+        .btn-help {
+            background: #e8f4f8;
+            color: #667eea;
+            border: 1px solid #667eea;
+        }
+
+        .btn-help:hover {
+            background: #d0e8f0;
+            transform: translateY(-2px);
+        }
+
+        .btn-clear {
+            background: #ffe8e8;
+            color: #e74c3c;
+            border: 1px solid #e74c3c;
+        }
+
+        .btn-clear:hover {
+            background: #ffd0d0;
+            transform: translateY(-2px);
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                height: 100vh;
+                max-height: none;
+                border-radius: 0;
+            }
+
+            .header h1 {
+                font-size: 20px;
+            }
+
+            .message-content {
+                max-width: 85%;
+                font-size: 13px;
+            }
+
+            button {
+                padding: 10px 16px;
+                font-size: 12px;
+            }
+
+            .btn-send {
+                min-width: 80px;
+            }
+
+            .bottom-buttons {
+                gap: 8px;
+                padding-top: 8px;
+            }
+
+            .input-field {
+                font-size: 16px;
+            }
+        }
+
+        .error-message {
+            background: #ffe8e8;
+            color: #c0392b;
+            padding: 10px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            border-left: 3px solid #c0392b;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>💬 AI Assistant</h1>
+            <p>Ask me anything and I'll help you find the answer</p>
+        </div>
+
+        <!-- Chat Box -->
+        <div class="chat-box" id="chatBox">
+            <div class="empty-state">
+                <div class="empty-state-icon">🤖</div>
+                <div class="empty-state-text">No messages yet</div>
+                <div class="empty-state-subtext">Start a conversation by typing a message below</div>
+            </div>
+        </div>
+
+        <!-- Input Area -->
+        <div class="input-area">
+            <div class="input-wrapper">
+                <textarea 
+                    class="input-field" 
+                    id="messageInput" 
+                    placeholder="Type your message here..."
+                    rows="1"
+                ></textarea>
+                <div class="button-group">
+                    <button class="btn-send" id="sendBtn">Send</button>
+                </div>
+            </div>
+            <div class="bottom-buttons">
+                <button class="btn-secondary btn-clear" id="clearBtn">🗑️ Clear</button>
+                <button class="btn-secondary btn-help" id="helpBtn">❓ Help</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const chatBox = document.getElementById('chatBox');
+        const messageInput = document.getElementById('messageInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const helpBtn = document.getElementById('helpBtn');
+
+        let isFirstMessage = true;
+        let isLoading = false;
+
+        // Auto-resize textarea
+        messageInput.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = Math.min(this.scrollHeight, 100) + 'px';
+        });
+
+        // Send message on Enter (Shift+Enter for new line)
+        messageInput.addEventListener('keydown', function(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendMessage();
+            }
+        });
+
+        // Send button click
+        sendBtn.addEventListener('click', sendMessage);
+
+        // Clear button click
+        clearBtn.addEventListener('click', function() {
+            if (confirm('Are you sure you want to clear all messages?')) {
+                chatBox.innerHTML = '';
+                isFirstMessage = true;
+                addEmptyState();
+                messageInput.value = '';
+                messageInput.style.height = 'auto';
+            }
+        });
+
+        // Help button click
+        helpBtn.addEventListener('click', function() {
+            const helpMessage = `Here are some tips to help you get started:
+• Ask me questions about anything
+• I can help with coding, writing, math, and more
+• Use clear and specific questions for better answers
+• You can ask follow-up questions to clarify
+• Press Shift+Enter to create a new line in your message`;
+            
+            addMessage(helpMessage, 'assistant');
+        });
+
+        async function sendMessage() {
+            const message = messageInput.value.trim();
+            
+            if (!message) return;
+            if (isLoading) return;
+
+            // Remove empty state if first message
+            if (isFirstMessage) {
+                chatBox.innerHTML = '';
+                isFirstMessage = false;
+            }
+
+            // Add user message to chat
+            addMessage(message, 'user');
+
+            // Clear input
+            messageInput.value = '';
+            messageInput.style.height = 'auto';
+
+            // Show loading indicator
+            isLoading = true;
+            sendBtn.disabled = true;
+            const loadingDiv = addLoadingIndicator();
+
+            try {
+                // Send message to backend
+                const response = await fetch('/assistant', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ message: message })
+                });
+
+                // Remove loading indicator
+                if (loadingDiv && loadingDiv.parentNode) {
+                    loadingDiv.parentNode.removeChild(loadingDiv);
+                }
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                
+                if (data.response) {
+                    addMessage(data.response, 'assistant');
+                } else {
+                    addErrorMessage('No response received from the assistant.');
+                }
+            } catch (error) {
+                // Remove loading indicator
+                if (loadingDiv && loadingDiv.parentNode) {
+                    loadingDiv.parentNode.removeChild(loadingDiv);
+                }
+                
+                console.error('Error:', error);
+                addErrorMessage('Failed to send message. Please try again.');
+            } finally {
+                isLoading = false;
+                sendBtn.disabled = false;
+                messageInput.focus();
+            }
+        }
+
+        function addMessage(text, sender) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${sender}`;
+
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+            contentDiv.textContent = text;
+
+            messageDiv.appendChild(contentDiv);
+            chatBox.appendChild(messageDiv);
+
+            // Scroll to bottom
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function addLoadingIndicator() {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message assistant';
+
+            const loadingDiv = document.createElement('div');
+            loadingDiv.className = 'loading-indicator active';
+
+            for (let i = 0; i < 3; i++) {
+                const dot = document.createElement('div');
+                dot.className = 'dot';
+                loadingDiv.appendChild(dot);
+            }
+
+            messageDiv.appendChild(loadingDiv);
+            chatBox.appendChild(messageDiv);
+
+            // Scroll to bottom
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+            return messageDiv;
+        }
+
+        function addErrorMessage(error) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message assistant';
+
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error-message';
+            errorDiv.innerHTML = `<strong>⚠️ Error:</strong> ${error}`;
+
+            messageDiv.appendChild(errorDiv);
+            chatBox.appendChild(messageDiv);
+
+            // Scroll to bottom
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function addEmptyState() {
+            const emptyState = document.createElement('div');
+            emptyState.className = 'empty-state';
+            emptyState.innerHTML = `
+                <div class="empty-state-icon">🤖</div>
+                <div class="empty-state-text">No messages yet</div>
+                <div class="empty-state-subtext">Start a conversation by typing a message below</div>
+            `;
+            chatBox.appendChild(emptyState);
+        }
+
+        // Focus input on page load
+        window.addEventListener('load', function() {
+            messageInput.focus();
+        });
+
+        // Prevent form submission if there's a form
+        document.addEventListener('submit', function(e) {
+            if (e.target === messageInput) {
+                e.preventDefault();
+            }
+        });
+    </script>
+</body>
+</html>
